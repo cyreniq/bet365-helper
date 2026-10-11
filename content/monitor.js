@@ -19,15 +19,32 @@
   let timer = null;
   const lastAlertAt = { corner: 0, full: 0 };
 
+  let lastLogged = '';
+
+  // One console line per change in what's suspended, to diagnose misclassified closures.
+  function log(markets, result) {
+    const closed = markets.filter((m) => m.suspended);
+    const corners = closed.filter((m) => m.corner).length;
+    const line =
+      `suspended ${closed.length}/${markets.length} ` +
+      `(corner ${corners}/${markets.filter((m) => m.corner).length}) ` +
+      `full=${result.state.fullActive}` +
+      (result.alert ? ` ALERT=${result.alert}` : '');
+    if (line === lastLogged) return;
+    lastLogged = line;
+    console.log(`[bet365-helper] ${new Date().toLocaleTimeString()} ${line}`, closed.map((m) => m.title));
+  }
+
   function evaluate() {
     timer = null;
-    const result = classify(state, scanMarkets());
+    const markets = scanMarkets();
+    const result = classify(state, markets);
     state = result.state;
+    log(markets, result);
     if (!result.alert) return;
     const now = Date.now();
     if (now - lastAlertAt[result.alert] < COOLDOWN_MS) return;
     lastAlertAt[result.alert] = now;
-    console.debug('[bet365-helper] closure:', result.alert);
     chrome.runtime.sendMessage({ type: 'closure', kind: result.alert }).catch(() => {});
   }
 
