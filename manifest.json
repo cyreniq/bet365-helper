@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "bet365 helper",
+  "name": "bet365 Helper",
   "version": "0.1.0",
   "description": "Per-tab audio alerts when bet365 suspends corner markets or all markets.",
   "action": {
-    "default_title": "bet365 helper: click to start/stop monitoring this tab"
+    "default_title": "bet365 Helper: click to start/stop monitoring this tab"
   },
   "background": {
     "service_worker": "background.js"
