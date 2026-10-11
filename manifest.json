@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "bet365 helper",
+  "version": "0.1.0",
+  "description": "Per-tab audio alerts when bet365 suspends corner markets or all markets.",
+  "action": {
+    "default_title": "bet365 helper: click to start/stop monitoring this tab"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["scripting", "storage", "offscreen"],
+  "host_permissions": [
+    "*://*.bet365.com/*",
+    "*://*.bet365.ee/*",
+    "*://*.bet365.es/*",
+    "*://*.bet365.it/*",
+    "*://*.bet365.gr/*",
+    "*://*.bet365.dk/*",
+    "*://*.bet365.de/*",
+    "*://*.bet365.mx/*",
+    "*://*.bet365.ca/*",
+    "*://*.bet365.com.au/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.bet365.com/*",
+        "*://*.bet365.ee/*",
+        "*://*.bet365.es/*",
+        "*://*.bet365.it/*",
+        "*://*.bet365.gr/*",
+        "*://*.bet365.dk/*",
+        "*://*.bet365.de/*",
+        "*://*.bet365.mx/*",
+        "*://*.bet365.ca/*",
+        "*://*.bet365.com.au/*"
+      ],
+      "js": ["content/raf-shim.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}
