@@ -11,11 +11,15 @@ function page(suspended = [], titles = [...CORNERS, ...OTHERS]) {
   return titles.map((title) => ({ title, suspended: s.has(title), corner: /corner/i.test(title) }));
 }
 
-// Feed scans in order, returning the alert of each.
+// Feed scans in order, returning the alert of each. A scan is a market list, or
+// { markets, at } to set the clock (ms); plain scans are 1 s apart.
 function run(...scans) {
   let state = initialState();
-  return scans.map((markets) => {
-    const r = classify(state, markets);
+  let now = 0;
+  return scans.map((scan) => {
+    const { markets, at } = Array.isArray(scan) ? { markets: scan } : scan;
+    now = at ?? now + 1000;
+    const r = classify(state, markets, { now });
     state = r.state;
     return r.alert;
   });
@@ -65,4 +69,38 @@ test('state carries over markets missing from one scan', () => {
 test('with too few non-corner markets rendered, a closure counts as corner', () => {
   const titles = [...CORNERS, 'Fulltime Result'];
   assert.deepEqual(run(page([], titles), page(titles, titles)), [null, 'corner']);
+});
+
+test('staged reopening after a goal does not alert corner', () => {
+  const all = [...CORNERS, ...OTHERS];
+  assert.deepEqual(
+    run(
+      page(),
+      page(all), // goal: everything closes
+      page(CORNERS), // main markets reopen first, corners still closed
+      page(['Corners']), // most corners reopen; full closure ends here
+      page(CORNERS), // corner flicker right after
+    ),
+    [null, 'full', null, null, null],
+  );
+});
+
+test('corner alerts resume once the quiet period after a full closure has passed', () => {
+  const all = [...CORNERS, ...OTHERS];
+  assert.deepEqual(
+    run(
+      { markets: page(), at: 0 },
+      { markets: page(all), at: 1000 },
+      { markets: page(), at: 2000 }, // full closure ends
+      { markets: page(CORNERS), at: 5000 }, // inside quiet period
+      { markets: page(), at: 20000 },
+      { markets: page(CORNERS), at: 21000 },
+    ),
+    [null, 'full', null, null, null, 'corner'],
+  );
+});
+
+test('an empty scan mid re-render does not end a full closure', () => {
+  const all = [...CORNERS, ...OTHERS];
+  assert.deepEqual(run(page(), page(all), [], page(CORNERS), page(all)), [null, 'full', null, null, null]);
 });
