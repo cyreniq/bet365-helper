@@ -8,10 +8,12 @@
 
   const { scanMarkets, isRelevantMutation } = globalThis.B365H_bet365;
   const { initialState, classify } = globalThis.B365H_classify;
+  const player = globalThis.B365H_player;
 
   const ARMED_ATTR = 'data-b365h-armed'; // read by raf-shim.js in the MAIN world
-  // One closure flips many headers within a few ms; evaluate once after the burst.
-  const SETTLE_MS = 250;
+  // One closure flips many headers within a few ms (recorded: 8 corner markets
+  // within a few ms); evaluate once after the burst.
+  const SETTLE_MS = 100;
   const COOLDOWN_MS = 2000;
 
   let state = initialState();
@@ -45,7 +47,9 @@
     const now = Date.now();
     if (now - lastAlertAt[result.alert] < COOLDOWN_MS) return;
     lastAlertAt[result.alert] = now;
-    chrome.runtime.sendMessage({ type: 'closure', kind: result.alert }).catch(() => {});
+    // Played in-page when the page allows audio; otherwise the background plays it.
+    const playedHere = player.play(result.alert);
+    chrome.runtime.sendMessage({ type: 'closure', kind: result.alert, playedHere }).catch(() => {});
   }
 
   function onMutations(mutations) {

@@ -40,5 +40,22 @@
       "run_at": "document_start",
       "world": "MAIN"
     }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["sounds/*.wav"],
+      "matches": [
+        "*://*.bet365.com/*",
+        "*://*.bet365.ee/*",
+        "*://*.bet365.es/*",
+        "*://*.bet365.it/*",
+        "*://*.bet365.gr/*",
+        "*://*.bet365.dk/*",
+        "*://*.bet365.de/*",
+        "*://*.bet365.mx/*",
+        "*://*.bet365.ca/*",
+        "*://*.bet365.com.au/*"
+      ]
+    }
   ]
 }

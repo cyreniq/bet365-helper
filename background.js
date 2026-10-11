@@ -1,8 +1,8 @@
-// Service worker: per-tab arming, (re-)injection of the monitor, alert playback.
+// Service worker: per-tab arming, (re-)injection of the monitor, fallback alert playback.
 // Chrome may stop this worker between events, so armed tabs live in storage.session.
 
 const BET365_URL = /^https?:\/\/([a-z0-9-]+\.)*bet365\.(com|ee|es|it|gr|dk|de|mx|ca|com\.au)\//i;
-const MONITOR_FILES = ['content/bet365.js', 'content/classify.js', 'content/monitor.js'];
+const MONITOR_FILES = ['content/bet365.js', 'content/classify.js', 'content/player.js', 'content/monitor.js'];
 
 async function getArmed() {
   const { armedTabs = [] } = await chrome.storage.session.get('armedTabs');
@@ -31,6 +31,8 @@ async function arm(tabId) {
   await setArmed(armed);
   await injectMonitor(tabId);
   await showBadge(tabId, true);
+  // Warm up the fallback player so an alert in the next 30 s doesn't wait for it.
+  await ensureOffscreen();
 }
 
 async function disarm(tabId, { tabGone = false } = {}) {
@@ -82,7 +84,7 @@ async function ensureOffscreen() {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender) => {
-  if (msg?.type !== 'closure' || !sender.tab) return;
+  if (msg?.type !== 'closure' || msg.playedHere || !sender.tab) return;
   getArmed().then(async (armed) => {
     if (!armed.has(sender.tab.id)) return;
     await ensureOffscreen();
