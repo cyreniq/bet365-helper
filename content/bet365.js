@@ -1,33 +1,30 @@
-// Every bet365-specific selector lives here. bet365 replaced the event page on
-// 2026-10-27 with a React app whose class names are build hashes, so market state is
-// read from attributes that feed-bridge.js (MAIN world) copies from bet365's feed data.
-// See CLAUDE.md "DOM structure".
+// Reads the bet365 state that feed-bridge.js (MAIN world) copies from bet365's feed data
+// onto <html>. bet365 replaced the event page on 2026-10-27 with a React app whose class
+// names are build hashes, so nothing here depends on its markup. See CLAUDE.md
+// "DOM structure".
 (() => {
-  const SEL = {
-    // Each rendered market; the value is bet365's market type id.
-    market: '[data-market-group-id]',
-  };
   // Written by feed-bridge.js.
   const ATTR = {
-    title: 'data-b365h-title',
-    suspended: 'data-b365h-suspended',
+    markets: 'data-b365h-markets',
     cornerTab: 'data-b365h-corner-tab',
+    stale: 'data-b365h-stale',
   };
   const CORNER_TITLE = /corner/i;
 
-  // Returns [{title, suspended, corner}] for every titled market on the event page.
+  // Returns [{title, suspended, corner}] for every market of the open event, including
+  // markets not rendered on the selected market tab. Empty if no event was found.
   function scanMarkets(doc = document) {
-    const markets = [];
-    for (const el of doc.querySelectorAll(SEL.market)) {
-      const title = el.getAttribute(ATTR.title)?.trim();
-      if (!title) continue;
-      markets.push({
-        title,
-        suspended: el.getAttribute(ATTR.suspended) === '1',
-        corner: CORNER_TITLE.test(title),
-      });
+    let list;
+    try {
+      list = JSON.parse(doc.documentElement.getAttribute(ATTR.markets) ?? '[]');
+    } catch {
+      return [];
     }
-    return markets;
+    return list.map(([title, suspended]) => ({
+      title,
+      suspended: suspended === 1,
+      corner: CORNER_TITLE.test(title),
+    }));
   }
 
   // True if the Corners/Cards tab is shown, false if bet365 hid it, null if unknown
@@ -38,28 +35,16 @@
     return value === null ? null : value === '1';
   }
 
+  // null while the page's live connection is fine; otherwise "reconnecting" or "reload".
+  function staleState(doc = document) {
+    return doc.documentElement.getAttribute(ATTR.stale);
+  }
+
   // Removes everything feed-bridge.js stamped. Stamps stop updating while a tab isn't
   // armed, so left in place they'd be taken for the current state when it's armed again.
   function clearStamps(doc = document) {
-    doc.documentElement.removeAttribute(ATTR.cornerTab);
-    for (const el of doc.querySelectorAll(SEL.market)) {
-      el.removeAttribute(ATTR.title);
-      el.removeAttribute(ATTR.suspended);
-    }
+    for (const name of Object.values(ATTR)) doc.documentElement.removeAttribute(name);
   }
 
-  const touchesMarket = (node) =>
-    node instanceof Element && (node.matches(SEL.market) || node.querySelector(SEL.market) !== null);
-
-  // True for a market's or the corner tab's stamped state changing, or for markets being
-  // added/removed (grid re-render, markets pulled).
-  function isRelevantMutation(m) {
-    if (m.type === 'attributes') return Object.values(ATTR).includes(m.attributeName);
-    if (m.type === 'childList') {
-      return [...m.addedNodes].some(touchesMarket) || [...m.removedNodes].some(touchesMarket);
-    }
-    return false;
-  }
-
-  globalThis.B365H_bet365 = { SEL, ATTR, scanMarkets, cornerTabShown, clearStamps, isRelevantMutation };
+  globalThis.B365H_bet365 = { ATTR, scanMarkets, cornerTabShown, staleState, clearStamps };
 })();

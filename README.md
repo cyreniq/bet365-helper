@@ -42,12 +42,16 @@ Monitoring is per tab. It survives a reload of the tab, and stops when the tab c
 | Yellow **ON** | Monitoring, with alerts at full speed |
 | Flashing **ON** | Monitoring, but you haven't clicked the page since it loaded, so sounds play slightly later |
 | Flashing red **?** | No markets found for 5 seconds: this isn't a match page, or bet365 has changed its page |
+| Flashing blue **!** | The page stopped receiving live data. The extension is restarting the page's connection, and reloads the tab if that doesn't help |
+
+### Stalled pages
+
+bet365 pages sometimes stop updating until they're reloaded. The extension watches the page's live data connection. If it goes quiet for 30 seconds, the extension closes it so bet365 reconnects, which takes about 15 seconds. If the page still gets no data 30 seconds later, it reloads the tab, at most once a minute. After a reload, click the page once to bring back the faster audio path.
 
 ## Limitations
 
-- **Stalled pages:** bet365 pages sometimes stop updating until they're reloaded. No alerts fire while that happens, and the badge still shows ON.
+- **Stalled pages:** only a page whose live connection goes quiet is recognised as stalled (see above). If bet365 freezes in some other way, no alerts fire and the badge still shows ON.
 - **Dependence on bet365's page:** the extension reads bet365's internal page data, so a bet365 update can break it. The red **?** badge usually shows when that has happened.
-- **Tab-dependent counts:** closures are judged from the markets shown on the selected market tab. Card markets closing on the Corners/Cards tab can fire a false full closure, and switching to a tab with only one or two suspended markets can fire a false match ending.
 - **Match ending alert:** it's based on a description of how bet365 closes a match and one observed end state. The full sequence hasn't been recorded.
 - **Moving between events:** alerts pause for 3 seconds after the page's address changes to a different `#` location.
 

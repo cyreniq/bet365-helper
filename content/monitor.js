@@ -7,7 +7,7 @@
     return;
   }
 
-  const { ATTR, scanMarkets, cornerTabShown, clearStamps, isRelevantMutation } = globalThis.B365H_bet365;
+  const { ATTR, scanMarkets, cornerTabShown, staleState, clearStamps } = globalThis.B365H_bet365;
   const { initialState, classify } = globalThis.B365H_classify;
   const player = globalThis.B365H_player;
   const flash = globalThis.B365H_flash;
@@ -36,6 +36,8 @@
   let flashPhase = false;
 
   let lastLogged = '';
+  // feed-bridge.js's stale state at the last tick, to ask for a reload only once per episode.
+  let lastStale = null;
 
   // One console line per change in what's suspended, to diagnose misclassified closures.
   function log(markets, result) {
@@ -92,16 +94,22 @@
     const now = Date.now();
     if (scanMarkets().length) marketsSeenAt = now;
     flashPhase = !flashPhase;
+    // The page's live connection went quiet (see feed-bridge.js). It's fixed by
+    // reconnecting, and failing that by reloading the tab, which background.js does.
+    const stale = staleState();
+    if (stale === 'reload' && lastStale !== 'reload') send({ type: 'reload' });
+    lastStale = stale;
     let look = 'on';
-    if (now - marketsSeenAt >= MISSING_AFTER_MS) look = flashPhase ? 'missingAlt' : 'missing';
+    if (stale) look = flashPhase ? 'staleAlt' : 'stale';
+    else if (now - marketsSeenAt >= MISSING_AFTER_MS) look = flashPhase ? 'missingAlt' : 'missing';
     else if (!player.ready()) look = flashPhase ? 'onAlt' : 'on';
     if (look === lastLook) return;
     lastLook = look;
     send({ type: 'badge', look });
   }
 
-  function onMutations(mutations) {
-    if (timer || !mutations.some(isRelevantMutation)) return;
+  function onMutations() {
+    if (timer) return;
     timer = setTimeout(evaluate, SETTLE_MS);
   }
 
@@ -116,19 +124,17 @@
     clearStamps();
     document.documentElement.setAttribute(ARMED_ATTR, '');
     state = initialState();
-    // Observe the whole document: bet365 replaces the grid element mid-match, and the
-    // corner tab state is stamped on <html>.
+    // feed-bridge.js stamps the whole event's market list on <html>.
     observer = new MutationObserver(onMutations);
     observer.observe(document.documentElement, {
-      subtree: true,
-      childList: true,
       attributes: true,
-      attributeFilter: Object.values(ATTR),
+      attributeFilter: [ATTR.markets, ATTR.cornerTab],
     });
     window.addEventListener('hashchange', onHashChange);
     evaluate(); // baseline scan; can't alert because every title is new
     marketsSeenAt = Date.now();
     lastLook = null;
+    lastStale = null;
     tickTimer = setInterval(tick, TICK_MS);
   }
 

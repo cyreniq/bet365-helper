@@ -26,7 +26,26 @@ const BADGES = {
   missing: { text: '?', bg: '#D93025', fg: '#FFFFFF' },
   // Alternates with `missing`.
   missingAlt: { text: '?', bg: '#FFFFFF', fg: '#D93025' },
+  // The page's live connection went quiet; reconnecting or reloading (feed-bridge.js).
+  stale: { text: '!', bg: '#1A73E8', fg: '#FFFFFF' },
+  // Alternates with `stale`.
+  staleAlt: { text: '!', bg: '#FFFFFF', fg: '#1A73E8' },
 };
+
+// A reload that hangs on bet365's spinner asks again; don't reload more often than this.
+const RELOAD_MIN_INTERVAL_MS = 60000;
+
+// Reloads a stale tab. The last reload time lives in storage.session because the worker
+// may be stopped between requests.
+async function reloadStale(tabId) {
+  const { lastReloads = {} } = await chrome.storage.session.get('lastReloads');
+  const now = Date.now();
+  if (now - (lastReloads[tabId] ?? 0) < RELOAD_MIN_INTERVAL_MS) return;
+  lastReloads[tabId] = now;
+  await chrome.storage.session.set({ lastReloads });
+  console.log('[bet365-helper] reloading tab', tabId, 'after its live connection went stale');
+  await chrome.tabs.reload(tabId);
+}
 
 // look: a BADGES key, or null for a tab that isn't armed.
 async function showBadge(tabId, look) {
@@ -120,6 +139,8 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   if (tabId === undefined) return;
   if (msg?.type === 'badge' && msg.look in BADGES) {
     getArmed().then((armed) => armed.has(tabId) && showBadge(tabId, msg.look));
+  } else if (msg?.type === 'reload') {
+    getArmed().then((armed) => armed.has(tabId) && reloadStale(tabId));
   } else if (msg?.type === 'closure' && !msg.playedHere) {
     getArmed().then(async (armed) => {
       if (!armed.has(tabId)) return;

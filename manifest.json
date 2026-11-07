@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "bet365 Helper",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Live match alerts for bet365. Click the icon on a match tab to start or stop monitoring it.",
   "icons": {
     "16": "icons/icon16.png",
