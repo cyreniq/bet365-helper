@@ -31,6 +31,12 @@
   const QUIET_MS = 30000;
   // After closing the connection, how long bet365 gets to reconnect before a reload.
   const RECONNECT_GRACE_MS = 30000;
+  // bet365 replacing its connection this often is a stall in itself: on 2026-11-08 a stale
+  // tab (odds frozen, clock running) got a new connection every ~10 s with almost no data,
+  // while a healthy tab beside it kept one connection for minutes. Reconnecting can't fix
+  // that (bet365 is already doing it), so it goes straight to a reload.
+  const CHURN_COUNT = 3;
+  const CHURN_WINDOW_MS = 60000;
 
   const log = (...args) => console.log(`[bet365-helper] ${new Date().toLocaleTimeString()}`, ...args);
 
@@ -106,6 +112,7 @@
   let socket = null;
   let lastMessageAt = Date.now();
   let closedAt = 0; // when we closed the connection to make bet365 reconnect
+  let replacedAt = []; // when bet365 replaced its connection, within CHURN_WINDOW_MS
 
   function onMessage() {
     lastMessageAt = Date.now();
@@ -114,21 +121,33 @@
 
   function watchConnection() {
     const root = document.documentElement;
+    const now = Date.now();
     if (!root.hasAttribute(ARMED_ATTR)) {
       closedAt = 0;
+      replacedAt = [];
+      lastMessageAt = now; // re-arming starts a fresh quiet period
       setAttr(root, ATTR.stale, null);
       return;
     }
     const s = transport()?._socket;
     if (s && s !== socket) {
+      // The first connection found isn't a replacement. Silence keeps counting across
+      // replacements: a page whose connection is replaced every few seconds without
+      // delivering data is just as stale.
+      if (socket) replacedAt.push(now);
       socket?.removeEventListener('message', onMessage);
       socket = s;
       s.addEventListener('message', onMessage);
-      // bet365 replaced its connection; give the new one a full quiet period.
-      lastMessageAt = Date.now();
     }
     if (!socket) return;
-    const now = Date.now();
+    replacedAt = replacedAt.filter((t) => now - t < CHURN_WINDOW_MS);
+    if (replacedAt.length >= CHURN_COUNT) {
+      if (root.getAttribute(ATTR.stale) !== 'reload') {
+        log(`bet365 replaced its live connection ${replacedAt.length} times in ${CHURN_WINDOW_MS / 1000} s; asking for a reload`);
+        setAttr(root, ATTR.stale, 'reload');
+      }
+      return;
+    }
     const quiet = now - lastMessageAt;
     if (quiet < QUIET_MS) {
       if (root.hasAttribute(ATTR.stale)) log(`live connection is back (${root.getAttribute(ATTR.stale)})`);

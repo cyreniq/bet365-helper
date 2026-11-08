@@ -46,7 +46,7 @@ Monitoring is per tab. It survives a reload of the tab, and stops when the tab c
 
 ### Stalled pages
 
-bet365 pages sometimes stop updating until they're reloaded. The extension watches the page's live data connection. If it goes quiet for 30 seconds, the extension closes it so bet365 reconnects, which takes about 15 seconds. If the page still gets no data 30 seconds later, it reloads the tab, at most once a minute. After a reload, click the page once to bring back the faster audio path.
+bet365 pages sometimes stop updating until they're reloaded. The extension watches the page's live data connection. If it goes quiet for 30 seconds, the extension closes it so bet365 reconnects, which takes about 15 seconds. If the page still gets no data 30 seconds later, it reloads the tab, at most once a minute. It also reloads the tab when bet365 keeps replacing the connection (3 times within a minute): a stalled page was seen doing that every 10 seconds while receiving almost nothing. After a reload, click the page once to bring back the faster audio path.
 
 ## Limitations
 
